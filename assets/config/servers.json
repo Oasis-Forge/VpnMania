@@ -1,0 +1,11 @@
+{
+  "servers": [
+    {
+      "id": "discord-primary",
+      "name": "Discord Access",
+      "region": "Global",
+      "serverAddress": "vpn.example.com:51820",
+      "wgQuickConfig": "[Interface]\nPrivateKey = REPLACE_WITH_CLIENT_PRIVATE_KEY\nAddress = 10.8.0.2/32\nDNS = 1.1.1.1\n\n[Peer]\nPublicKey = REPLACE_WITH_SERVER_PUBLIC_KEY\nAllowedIPs = 0.0.0.0/0, ::/0\nPersistentKeepalive = 25\nEndpoint = vpn.example.com:51820"
+    }
+  ]
+}
