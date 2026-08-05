@@ -148,16 +148,28 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                   ),
                   const SizedBox(height: 24),
-                  const Text(
-                    'Full-tunnel WireGuard. Replace the sample server '
-                    'config with your own endpoint before production use.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppTheme.muted,
-                      fontSize: 12,
-                      height: 1.4,
+                  if (vpn.isWebPreview)
+                    const Text(
+                      'Browser preview only — WireGuard VPN requires Android, '
+                      'iOS, or Windows.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppTheme.muted,
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    )
+                  else
+                    const Text(
+                      'Full-tunnel WireGuard. Replace the sample server '
+                      'config with your own endpoint before production use.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppTheme.muted,
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 8),
                 ],
               ),

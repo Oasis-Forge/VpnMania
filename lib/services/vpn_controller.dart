@@ -5,6 +5,7 @@ import 'package:wireguard_flutter/wireguard_flutter.dart';
 import 'package:wireguard_flutter/wireguard_flutter_platform_interface.dart';
 
 import '../models/server_profile.dart';
+import 'web_vpn_stub.dart';
 
 /// Thin facade over [WireGuardFlutter] for connect / disconnect / status.
 class VpnController extends ChangeNotifier {
@@ -12,7 +13,12 @@ class VpnController extends ChangeNotifier {
     WireGuardFlutterInterface? wireguard,
     this.interfaceName = 'wg0',
     this.providerBundleIdentifier = 'com.vpnmania.vpnmania.WGExtension',
-  }) : _wireguard = wireguard ?? WireGuardFlutter.instance;
+  }) : _wireguard = wireguard ?? _createBackend();
+
+  static WireGuardFlutterInterface _createBackend() {
+    if (kIsWeb) return WebVpnStub();
+    return WireGuardFlutter.instance;
+  }
 
   final WireGuardFlutterInterface _wireguard;
   final String interfaceName;
@@ -24,6 +30,9 @@ class VpnController extends ChangeNotifier {
   String? _error;
   bool _initialized = false;
   StreamSubscription<VpnStage>? _stageSub;
+
+  /// True when running the browser UI preview (no real tunnel).
+  bool get isWebPreview => kIsWeb;
 
   VpnStage get stage => _stage;
   String? get error => _error;

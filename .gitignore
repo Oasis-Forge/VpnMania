@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Live WireGuard peers (secrets) — never commit
+assets/config/servers.local.json
+**/servers.local.json

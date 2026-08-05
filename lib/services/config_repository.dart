@@ -6,14 +6,19 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/server_profile.dart';
+import 'local_config_loader_stub.dart'
+    if (dart.library.io) 'local_config_loader_io.dart' as local_loader;
 
-/// Loads WireGuard server profiles over HTTPS, with a local cache and
-/// bundled asset fallback for offline / first-run use.
+/// Loads WireGuard server profiles.
+///
+/// Order: `servers.local.json` (gitignored secrets) → remote HTTPS →
+/// SharedPreferences cache → bundled [assetPath].
 class ConfigRepository {
   ConfigRepository({
     http.Client? client,
     this.remoteConfigUrl,
     this.assetPath = 'assets/config/servers.json',
+    this.localOverridePath = 'assets/config/servers.local.json',
   }) : _client = client ?? http.Client();
 
   static const _cacheKey = 'vpnmania.server_catalog';
@@ -21,12 +26,20 @@ class ConfigRepository {
   static const _configUrlKey = 'vpnmania.config_url';
 
   /// Optional HTTPS endpoint that returns the same JSON shape as [assetPath].
-  /// Override at runtime via [setRemoteConfigUrl].
   final String? remoteConfigUrl;
   final String assetPath;
+
+  /// Relative path (from process cwd) for live peer secrets.
+  final String localOverridePath;
   final http.Client _client;
 
   Future<ServerCatalog> loadCatalog() async {
+    final local = await local_loader.loadLocalServerCatalog(localOverridePath);
+    if (local != null) {
+      debugPrint('Loaded server catalog from local override');
+      return local;
+    }
+
     final prefs = await SharedPreferences.getInstance();
     final url = prefs.getString(_configUrlKey) ?? remoteConfigUrl;
 
