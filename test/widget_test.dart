@@ -9,7 +9,7 @@ void main() {
           'id': 'a',
           'name': 'Discord Access',
           'serverAddress': 'example.com:51820',
-          'wgQuickConfig': '[Interface]\nPrivateKey = x',
+          'wgQuickConfig': '[Interface]\nPrivateKey = REPLACE_WITH_X',
           'region': 'Global',
         },
       ],
@@ -17,5 +17,18 @@ void main() {
 
     expect(catalog.servers, hasLength(1));
     expect(catalog.findById('a')?.name, 'Discord Access');
+    expect(catalog.servers.first.isPlaceholder, isTrue);
+    expect(catalog.hasOnlyPlaceholders, isTrue);
+  });
+
+  test('discordOptimized defaults true', () {
+    final p = ServerProfile.fromJson({
+      'id': 'b',
+      'name': 'Live',
+      'serverAddress': '1.2.3.4:51820',
+      'wgQuickConfig': '[Interface]\nPrivateKey = abc',
+    });
+    expect(p.discordOptimized, isTrue);
+    expect(p.isPlaceholder, isFalse);
   });
 }

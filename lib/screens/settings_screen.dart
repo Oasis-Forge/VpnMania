@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/server_profile.dart';
+import '../services/app_settings.dart';
 import '../services/config_repository.dart';
 import '../theme/app_theme.dart';
 
@@ -8,17 +9,21 @@ class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
     super.key,
     required this.configRepository,
+    required this.settings,
     required this.catalog,
     required this.selectedServer,
     required this.onServerChanged,
     required this.onReloadCatalog,
+    required this.onSettingsChanged,
   });
 
   final ConfigRepository configRepository;
+  final AppSettings settings;
   final ServerCatalog catalog;
   final ServerProfile? selectedServer;
   final ValueChanged<ServerProfile> onServerChanged;
   final Future<void> Function() onReloadCatalog;
+  final VoidCallback onSettingsChanged;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -70,21 +75,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = widget.settings;
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const Text(
-            'Server',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.muted,
-              letterSpacing: 0.6,
-            ),
+          const _SectionLabel('Connection'),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Auto-connect on launch'),
+            subtitle: const Text('Connect to the last Discord server when the app starts'),
+            value: s.autoConnect,
+            onChanged: (v) async {
+              await s.setAutoConnect(v);
+              widget.onSettingsChanged();
+              setState(() {});
+            },
           ),
-          const SizedBox(height: 8),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Auto-reconnect on drop'),
+            subtitle: const Text('Retry with backoff if the tunnel drops unexpectedly'),
+            value: s.autoReconnect,
+            onChanged: (v) async {
+              await s.setAutoReconnect(v);
+              widget.onSettingsChanged();
+              setState(() {});
+            },
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Kill switch (Windows)'),
+            subtitle: const Text(
+              'Best-effort: block outbound traffic if the VPN drops. '
+              'Requires Administrator. See docs/KILL_SWITCH.md.',
+            ),
+            value: s.killSwitch,
+            onChanged: (v) async {
+              await s.setKillSwitch(v);
+              widget.onSettingsChanged();
+              setState(() {});
+            },
+          ),
+          const Divider(height: 32),
+          const _SectionLabel('Server'),
           ...widget.catalog.servers.map((server) {
             final selected = server.id == widget.selectedServer?.id;
             return ListTile(
@@ -98,15 +133,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             );
           }),
           const Divider(height: 32),
-          const Text(
-            'Remote config URL',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.muted,
-              letterSpacing: 0.6,
-            ),
-          ),
+          const _SectionLabel('Remote config URL'),
           const SizedBox(height: 8),
           TextField(
             controller: _urlController,
@@ -123,28 +150,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Text(_saving ? 'Saving…' : 'Save & refresh'),
           ),
           const Divider(height: 40),
-          const Text(
-            'About',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.muted,
-              letterSpacing: 0.6,
-            ),
-          ),
+          const _SectionLabel('About'),
           const SizedBox(height: 8),
           const Text(
-            'VpnMania tunnels your device traffic over WireGuard so you can '
-            'reach Discord in regions where the chat app is blocked.\n\n'
-            'Your traffic is sent through the configured VPN server while '
-            'connected. Ping/latency-based server picking is planned for a '
-            'later release.',
-            style: TextStyle(
-              color: AppTheme.onSurface,
-              height: 1.45,
-            ),
+            'VpnMania is a Discord-focused WireGuard client: connect so chat '
+            'and voice work where Discord is blocked.\n\n'
+            'Traffic is full-tunneled while connected. Smart connect picks the '
+            'lowest-latency Discord-optimized server. Kill switch is Windows '
+            'firewall best-effort, not a kernel driver.',
+            style: TextStyle(color: AppTheme.onSurface, height: 1.45),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: AppTheme.muted,
+        letterSpacing: 0.6,
       ),
     );
   }
