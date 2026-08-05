@@ -1,0 +1,11 @@
+{
+  "servers": [
+    {
+      "id": "discord-primary",
+      "name": "Discord Access",
+      "region": "VPS",
+      "serverAddress": "YOUR_VPS_IP:51820",
+      "wgQuickConfig": "[Interface]\nPrivateKey = PASTE_CLIENT_PRIVATE_KEY\nAddress = 10.8.0.2/32\nDNS = 1.1.1.1\n\n[Peer]\nPublicKey = PASTE_SERVER_PUBLIC_KEY\nAllowedIPs = 0.0.0.0/0, ::/0\nPersistentKeepalive = 25\nEndpoint = YOUR_VPS_IP:51820"
+    }
+  ]
+}
