@@ -4,6 +4,7 @@ import 'models/server_profile.dart';
 import 'screens/home_screen.dart';
 import 'screens/settings_screen.dart';
 import 'services/config_repository.dart';
+import 'services/latency_service.dart';
 import 'services/vpn_controller.dart';
 import 'theme/app_theme.dart';
 
@@ -35,10 +36,12 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   final ConfigRepository _configRepository = ConfigRepository();
-  final VpnController _vpn = VpnController();
+  final LatencyService _latency = LatencyService();
+  late final VpnController _vpn = VpnController();
 
   ServerCatalog? _catalog;
   ServerProfile? _selected;
+  Map<String, Duration?> _latencies = {};
   Object? _loadError;
   bool _loading = true;
 
@@ -53,14 +56,21 @@ class _AppShellState extends State<AppShell> {
       _loading = true;
       _loadError = null;
     });
+    await _vpn.loadSettings();
     try {
       await _vpn.initialize();
-    } catch (_) {
-      // Initialize may fail until VPN permission / admin is granted.
-      // UI still loads; connect will retry.
-    }
+    } catch (_) {}
     try {
       await _reloadCatalog();
+      await _probeLatencies();
+      if (_vpn.settings.autoConnect &&
+          _selected != null &&
+          !_selected!.isPlaceholder &&
+          !_vpn.isConnected) {
+        try {
+          await _vpn.connect(_selected!);
+        } catch (_) {}
+      }
     } catch (error) {
       _loadError = error;
     } finally {
@@ -80,9 +90,30 @@ class _AppShellState extends State<AppShell> {
     });
   }
 
+  Future<void> _probeLatencies() async {
+    final catalog = _catalog;
+    if (catalog == null) return;
+    _latency.invalidate();
+    final map = await _latency.measureAll(catalog.servers);
+    if (!mounted) return;
+    setState(() => _latencies = map);
+  }
+
   Future<void> _selectServer(ServerProfile profile) async {
     await _configRepository.setSelectedServerId(profile.id);
     setState(() => _selected = profile);
+  }
+
+  Future<void> _smartConnect() async {
+    final catalog = _catalog;
+    if (catalog == null) return;
+    if (catalog.hasOnlyPlaceholders) {
+      throw StateError('Configure a live peer first (NEXT_ACTIONS.md)');
+    }
+    final best = await _latency.pickFastest(catalog.servers);
+    if (best == null) throw StateError('No servers available');
+    await _selectServer(best);
+    await _vpn.connect(best);
   }
 
   void _openSettings() {
@@ -92,12 +123,17 @@ class _AppShellState extends State<AppShell> {
       MaterialPageRoute<void>(
         builder: (context) => SettingsScreen(
           configRepository: _configRepository,
+          settings: _vpn.settings,
           catalog: catalog,
           selectedServer: _selected,
           onServerChanged: (profile) async {
             await _selectServer(profile);
           },
-          onReloadCatalog: _reloadCatalog,
+          onReloadCatalog: () async {
+            await _reloadCatalog();
+            await _probeLatencies();
+          },
+          onSettingsChanged: () => setState(() {}),
         ),
       ),
     );
@@ -147,8 +183,16 @@ class _AppShellState extends State<AppShell> {
       vpn: _vpn,
       catalog: _catalog!,
       selectedServer: _selected,
+      latency: _latency,
+      latencies: _latencies,
       onServerChanged: _selectServer,
       onOpenSettings: _openSettings,
+      onRefreshCatalog: () async {
+        await _reloadCatalog();
+        await _probeLatencies();
+      },
+      onRefreshLatencies: _probeLatencies,
+      onSmartConnect: _smartConnect,
     );
   }
 }

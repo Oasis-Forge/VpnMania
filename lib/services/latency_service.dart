@@ -1,22 +1,23 @@
 import '../models/server_profile.dart';
+import 'latency_service_stub.dart'
+    if (dart.library.io) 'latency_service_io.dart' as impl;
 
-/// Placeholder for future ping / latency-based server selection.
-///
-/// Not used in the Discord-access MVP. Implement later to measure RTT to
-/// WireGuard endpoints and pick the lowest-latency profile.
-abstract class LatencyService {
-  Future<Duration?> measure(ServerProfile profile);
+/// Measures endpoint RTT for Smart connect / Recommended sorting.
+class LatencyService {
+  LatencyService({Duration cacheTtl = const Duration(minutes: 2)})
+      : _inner = impl.createLatencyService(cacheTtl: cacheTtl);
 
-  Future<ServerProfile?> pickFastest(List<ServerProfile> profiles);
-}
+  final impl.LatencyServiceBackend _inner;
 
-class NoOpLatencyService implements LatencyService {
-  @override
-  Future<Duration?> measure(ServerProfile profile) async => null;
+  Future<Duration?> measure(ServerProfile profile) => _inner.measure(profile);
 
-  @override
-  Future<ServerProfile?> pickFastest(List<ServerProfile> profiles) async {
-    if (profiles.isEmpty) return null;
-    return profiles.first;
-  }
+  Future<Map<String, Duration?>> measureAll(List<ServerProfile> profiles) =>
+      _inner.measureAll(profiles);
+
+  Future<ServerProfile?> pickFastest(List<ServerProfile> profiles) =>
+      _inner.pickFastest(profiles);
+
+  Duration? cached(String serverId) => _inner.cached(serverId);
+
+  void invalidate() => _inner.invalidate();
 }
